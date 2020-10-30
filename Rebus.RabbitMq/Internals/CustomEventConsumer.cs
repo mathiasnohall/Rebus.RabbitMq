@@ -1,29 +1,30 @@
 ﻿using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
-using System;
 using System.Collections.Concurrent;
 
 namespace Rebus.Internals
 {
-    class CustomQueueingConsumer : DefaultBasicConsumer
+    class CustomEventConsumer : EventingBasicConsumer
     {
         public ConcurrentQueue<BasicDeliverEventArgs> Queue { get; } = new ConcurrentQueue<BasicDeliverEventArgs>();
 
-        public CustomQueueingConsumer(IModel model) : base(model)
+        public CustomEventConsumer(IModel model) : base(model)
         {
+            var consumer = new EventingBasicConsumer(model);
+            consumer.Received += (ca, ea) => HandleReceive(ca, ea);
         }
 
-        public override void HandleBasicDeliver(string consumerTag, ulong deliveryTag, bool redelivered, string exchange, string routingKey, IBasicProperties properties, ReadOnlyMemory<byte> body)
+        internal void HandleReceive(object o, BasicDeliverEventArgs ea)
         {
             Queue.Enqueue(new BasicDeliverEventArgs
             {
-                ConsumerTag = consumerTag,
-                DeliveryTag = deliveryTag,
-                Redelivered = redelivered,
-                Exchange = exchange,
-                RoutingKey = routingKey,
-                BasicProperties = properties,
-                Body = body.ToArray()
+                ConsumerTag = ea.ConsumerTag,
+                DeliveryTag = ea.DeliveryTag,
+                Redelivered = ea.Redelivered,
+                Exchange = ea.Exchange,
+                RoutingKey = ea.RoutingKey,
+                BasicProperties = ea.BasicProperties,
+                Body = ea.Body.ToArray()
             });
         }
 
